@@ -37,20 +37,18 @@ const fmt = {
 
 async function fetchDirect() {
   try {
-    const BASE =
-      import.meta.env.VITE_API_URL || "http://localhost:3001";
+    const res = await fetch('/data/data.json?ts=' + Date.now());
+    const raw = await res.json();
 
-    const [markets, price] = await Promise.all([
-      fetch(`${BASE}/api/markets`).then((r) => r.json()),
-      fetch(`${BASE}/api/btc`).then((r) => r.json()),
-    ]);
+    const markets = raw.markets || [];
+    const priceData = raw.btc || {};
 
-    const btcPrice = price?.bitcoin?.usd;
-    const btcChange24h = price?.bitcoin?.usd_24h_change;
+    const btcPrice = priceData?.bitcoin?.usd;
+    const btcChange24h = priceData?.bitcoin?.usd_24h_change;
 
-    const btcMarkets = (markets || []).filter((m) => {
-      const q = (m.question || m.title || "").toLowerCase();
-      return q.includes("bitcoin") || q.includes("btc");
+    const btcMarkets = markets.filter((m) => {
+      const q = (m.question || m.title || '').toLowerCase();
+      return q.includes('bitcoin') || q.includes('btc');
     });
 
     const activeMarkets = [];
@@ -63,7 +61,7 @@ async function fetchDirect() {
         0.5;
 
       const obj = {
-        question: m.question || m.title || "Unknown",
+        question: m.question || m.title || 'Unknown',
         yesProb: isNaN(prob) ? 0.5 : Math.max(0, Math.min(1, prob)),
         volume: parseFloat(m.volumeNum || m.volume || 0),
         endDate: m.endDateIso || m.endDate || null,
@@ -76,10 +74,6 @@ async function fetchDirect() {
       else if (m.resolved) resolvedMarkets.push(obj);
     }
 
-    if (!activeMarkets.length && !resolvedMarkets.length) {
-      throw new Error("No BTC markets found");
-    }
-
     return {
       btcPrice,
       btcChange24h,
@@ -87,7 +81,7 @@ async function fetchDirect() {
       resolvedMarkets: resolvedMarkets.slice(0, 20),
     };
   } catch (e) {
-    throw new Error(`API Error: ${e.message}`);
+    throw new Error(`GitHub Data Error: ${e.message}`);
   }
 }
 
