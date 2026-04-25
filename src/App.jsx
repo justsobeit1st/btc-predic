@@ -37,70 +37,55 @@ const fmt = {
 
 async function fetchDirect() {
   try {
-    const [mktRes, priceRes] = await Promise.allSettled([
-      fetch('https://gamma-api.polymarket.com/markets?tag_slug=crypto&limit=100&active=true'),
-      fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true'),
+    const BASE =
+      import.meta.env.VITE_API_URL || "http://localhost:3001";
+
+    const [markets, price] = await Promise.all([
+      fetch(`${BASE}/api/markets`).then((r) => r.json()),
+      fetch(`${BASE}/api/btc`).then((r) => r.json()),
     ]);
 
-    let btcPrice = null,
-      btcChange24h = null;
-    if (priceRes.status === 'fulfilled' && priceRes.value.ok) {
-      const pd = await priceRes.value.json();
-      btcPrice = pd?.bitcoin?.usd;
-      btcChange24h = pd?.bitcoin?.usd_24h_change;
+    const btcPrice = price?.bitcoin?.usd;
+    const btcChange24h = price?.bitcoin?.usd_24h_change;
+
+    const btcMarkets = (markets || []).filter((m) => {
+      const q = (m.question || m.title || "").toLowerCase();
+      return q.includes("bitcoin") || q.includes("btc");
+    });
+
+    const activeMarkets = [];
+    const resolvedMarkets = [];
+
+    for (const m of btcMarkets) {
+      const prob =
+        parseFloat(m.outcomePrices?.[0]) ||
+        parseFloat(m.bestBid) ||
+        0.5;
+
+      const obj = {
+        question: m.question || m.title || "Unknown",
+        yesProb: isNaN(prob) ? 0.5 : Math.max(0, Math.min(1, prob)),
+        volume: parseFloat(m.volumeNum || m.volume || 0),
+        endDate: m.endDateIso || m.endDate || null,
+        resolution:
+          m.resolutionString || m.resolvedOutcome || null,
+        resolved: !!m.resolved,
+      };
+
+      if (m.active && !m.resolved) activeMarkets.push(obj);
+      else if (m.resolved) resolvedMarkets.push(obj);
     }
 
-    let activeMarkets = [],
-      resolvedMarkets = [];
-    if (mktRes.status === 'fulfilled' && mktRes.value.ok) {
-      const markets = await mktRes.value.json();
-      const btcMarkets = (markets || []).filter((m) => {
-        const q = (m.question || m.title || '').toLowerCase();
-        return q.includes('bitcoin') || q.includes('btc');
-      });
-
-      for (const m of btcMarkets) {
-        const prob = parseFloat(m.outcomePrices?.[0]) || parseFloat(m.bestBid) || 0.5;
-        const obj = {
-          question: m.question || m.title || 'Unknown',
-          yesProb: isNaN(prob) ? 0.5 : Math.max(0, Math.min(1, prob)),
-          volume: parseFloat(m.volumeNum || m.volume || 0),
-          endDate: m.endDateIso || m.endDate || null,
-          resolution: m.resolutionString || null,
-          resolved: !!m.resolved,
-        };
-        if (m.active && !m.resolved) activeMarkets.push(obj);
-        else if (m.resolved) resolvedMarkets.push(obj);
-      }
-
-      if (resolvedMarkets.length < 5) {
-        try {
-          const rRes = await fetch('https://gamma-api.polymarket.com/markets?tag_slug=crypto&limit=50&active=false&resolved=true');
-          if (rRes.ok) {
-            const rData = await rRes.json();
-            const btcResolved = (rData || []).filter((m) => {
-              const q = (m.question || m.title || '').toLowerCase();
-              return q.includes('bitcoin') || q.includes('btc');
-            });
-            for (const m of btcResolved) {
-              const prob = parseFloat(m.outcomePrices?.[0]) || 0.5;
-              resolvedMarkets.push({
-                question: m.question || m.title || 'Unknown',
-                yesProb: isNaN(prob) ? 0.5 : Math.max(0, Math.min(1, prob)),
-                volume: parseFloat(m.volumeNum || m.volume || 0),
-                endDate: m.endDateIso || m.endDate || null,
-                resolution: m.resolutionString || m.resolvedOutcome || null,
-                resolved: true,
-              });
-            }
-          }
-        } catch (_) {}
-      }
+    if (!activeMarkets.length && !resolvedMarkets.length) {
+      throw new Error("No BTC markets found");
     }
 
-    if (!activeMarkets.length && !resolvedMarkets.length) throw new Error('No BTC markets found');
-
-    return { btcPrice, btcChange24h, activeMarkets: activeMarkets.slice(0, 20), resolvedMarkets: resolvedMarkets.slice(0, 20) };
+    return {
+      btcPrice,
+      btcChange24h,
+      activeMarkets: activeMarkets.slice(0, 20),
+      resolvedMarkets: resolvedMarkets.slice(0, 20),
+    };
   } catch (e) {
     throw new Error(`API Error: ${e.message}`);
   }
