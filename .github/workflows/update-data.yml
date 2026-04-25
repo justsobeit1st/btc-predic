@@ -1,0 +1,44 @@
+name: Update BTC Data
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # every 10 minutes
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Fetch APIs
+        run: |
+          echo "Fetching Polymarket..."
+          MARKETS=$(curl -s "https://gamma-api.polymarket.com/markets?tag_slug=crypto&limit=100&active=true")
+
+          echo "Fetching BTC price..."
+          BTC=$(curl -s "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true")
+
+          echo "Building JSON..."
+
+          echo "{
+            \"markets\": $MARKETS,
+            \"btc\": $BTC,
+            \"updated\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
+          }" > data/data.json
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+
+          git add data/data.json
+
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "auto update data"
+            git push
+          fi
