@@ -37,7 +37,14 @@ const fmt = {
 
 async function fetchDirect() {
   try {
-    const res = await fetch('/data/data.json');
+    const BASE = import.meta.env.BASE_URL || '/btc-predic/';
+
+    const res = await fetch(`${BASE}data/data.json?ts=${Date.now()}`);
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+
     const raw = await res.json();
 
     const markets = raw.markets || [];
