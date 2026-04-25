@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write   # ✅ THIS FIXES 403
+  contents: write
 
 jobs:
   update:
@@ -15,16 +15,15 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true   # ✅ important
+          fetch-depth: 0
 
       - name: Fetch APIs
         run: |
-          echo "Fetching Polymarket..."
           MARKETS=$(curl -s "https://gamma-api.polymarket.com/markets?tag_slug=crypto&limit=100&active=true")
-
-          echo "Fetching BTC price..."
           BTC=$(curl -s "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true")
 
-          echo "Building JSON..."
           echo "{
             \"markets\": $MARKETS,
             \"btc\": $BTC,
@@ -42,5 +41,5 @@ jobs:
             echo "No changes"
           else
             git commit -m "auto update data"
-            git push
+            git push origin main   # ✅ explicit branch
           fi
