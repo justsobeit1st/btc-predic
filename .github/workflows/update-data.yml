@@ -24,7 +24,7 @@ jobs:
 
       - name: Fetch APIs
         run: |
-          MARKETS=$(curl -s "https://gamma-api.polymarket.com/markets?tag_slug=crypto&limit=100&active=true")
+          MARKETS=$(curl -s "https://gamma-api.polymarket.com/markets?tag_slug=crypto&limit=1000&active=true")
           BTC=$(curl -s "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true")
 
           echo "{
