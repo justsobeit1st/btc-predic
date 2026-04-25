@@ -37,7 +37,7 @@ const fmt = {
 
 async function fetchDirect() {
   try {
-    const res = await fetch('/data/data.json?ts=' + Date.now());
+    const res = await fetch('/data/data.json');
     const raw = await res.json();
 
     const markets = raw.markets || [];
