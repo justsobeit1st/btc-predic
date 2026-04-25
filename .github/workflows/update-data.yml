@@ -2,8 +2,11 @@ name: Update BTC Data
 
 on:
   schedule:
-    - cron: "*/10 * * * *"   # every 10 minutes
+    - cron: "*/10 * * * *"
   workflow_dispatch:
+
+permissions:
+  contents: write   # ✅ THIS FIXES 403
 
 jobs:
   update:
@@ -22,14 +25,13 @@ jobs:
           BTC=$(curl -s "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true")
 
           echo "Building JSON..."
-
           echo "{
             \"markets\": $MARKETS,
             \"btc\": $BTC,
             \"updated\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
           }" > data/data.json
 
-      - name: Commit & push if changed
+      - name: Commit & push
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
